@@ -1,45 +1,62 @@
 import sbt._
 import Keys._
 
-object SbtBowerBuild extends Build with BuildExtra {
-
-	lazy val sbtBower = Project("sbt-bower", file("."), settings = mainSettings)
-
-	lazy val mainSettings: Seq[Project.Setting[_]] = Defaults.defaultSettings ++ /*ScriptedPlugin.scriptedSettings ++ */ Seq(
-		sbtPlugin := true,
-		name := "sbt-bower",
-		organization := "com.github.masseguillaume",
-		version := "0.2.0-SNAPSHOT",
-		scalacOptions ++= Seq("-deprecation", "-unchecked"),
-		publishTo := Some(Resolver.file("Github Pages", 
-			Path.userHome / "Project" / "Github" / "masseguillaume.github.com" / "maven" asFile)(
-			Patterns(true, Resolver.mavenStyleBasePattern))
-		),
-		publishMavenStyle := true,
-    	publishArtifact in Test := false,
-    	pomIncludeRepository := (_ => false),
-    	pomExtra := extraPom
-	)
+object Publish{
+  object TargetRepository {
+    def scmio: Project.Initialize[Option[sbt.Resolver]] = version { (version: String) =>
+      val rootDir = "/srv/maven/"
+      val path =
+        if (version.trim.endsWith("SNAPSHOT")) 
+          rootDir + "snapshots/" 
+        else 
+          rootDir + "releases/" 
+      Some(Resolver.sftp("scm.io intern repo", "scm.io", 44144, path))
+    }
+  }
+  lazy val settings = Seq(
+    publishMavenStyle := true,
+    publishTo <<= TargetRepository.scmio,
+    publishArtifact in Test := false,
+    pomIncludeRepository := { _ => false },
+    homepage := Some(url("http://scm.io")),
+    pomExtra := extraPom)
 
 	def extraPom = (
-	   <url></url>
-	    <licenses>
-	      <license>
-	        <name>Apache 2.0</name>
-	        <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
-	        <distribution>repo</distribution>
-	      </license>
-	    </licenses>
-	    <scm>
-	      <url>git@github.com:MasseGuillaume/sbt-bower.git</url>
-	      <connection>scm:git:git@github.com:MasseGuillaume/sbt-bower.git</connection>
-	    </scm>
-	    <developers>
-	      <developer>
-	      <id>MasseGuillaume</id>
-	      <name>Guillaume Massé</name>
-	      <url>http://github.com/MasseGuillaume</url>
-	    </developer>
-	  </developers>
+		<url></url>
+		<licenses>
+		  <license>
+		    <name>Apache 2.0</name>
+		    <url>http://www.apache.org/licenses/LICENSE-2.0.html</url>
+		    <distribution>repo</distribution>
+		  </license>
+		</licenses>
+		<scm>
+		  <url>git@github.com:scalableminds/sbt-bower-simple.git</url>
+		  <connection>scm:git:git@github.com:scalableminds/sbt-bower-simple.git</connection>
+		</scm>
+		<developers>
+		  <developer>
+		    <id>tmbo</id>
+		    <name>Tom Bocklisch</name>
+		    <url>http://github.com/tmbo</url>
+		  </developer>
+		</developers>
 	)
+}
+
+object SbtBowerBuild extends Build with BuildExtra {
+
+  val projectVersion = "1.0.0"
+
+  val projectName = "sbt-bower-simple"
+
+	lazy val sbtBower = Project(projectName, file("."), settings = projectSettings)
+
+	lazy val projectSettings: Seq[Project.Setting[_]] = Defaults.defaultSettings ++ Seq(
+		sbtPlugin := true,
+		name := projectName,
+		organization := "com.scalableminds",
+		version := projectVersion,
+		scalacOptions ++= Seq("-deprecation", "-unchecked", "-feature")
+	) ++ Publish.settings
 }

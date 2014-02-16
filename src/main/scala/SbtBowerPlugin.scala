@@ -1,54 +1,43 @@
 import sbt._
 import Keys._
-import Path._
-import IO._
 
-
-object BowerKeys {
-  val Bower = config("bower") extend (Compile)
-  val frontendDependencies = SettingKey[Seq[FrontendDependency]]("frontend-dependency","frontend dependencies to resolve with bower")
+object SimpleBowerKeys {
   val bowerPath = SettingKey[String]("bower-path","where bower is installed")
 }
 
-object SbtBowerPlugin extends Plugin {
+object SbtSimpleBowerPlugin extends Plugin {
+  object Colors {
 
-  import BowerKeys._
+    import scala.Console._
 
-	val install = TaskKey[Unit]("install","install frontend dependencies")
-	private def installTask: Project.Initialize[Task[Unit]] = (bowerPath, frontendDependencies, sourceDirectory, streams ) map { (bower, dependencies, source, s ) =>
-	  for { dependency <- dependencies } {
-	    s.log.info("installing %s".format(dependency.install) )
-      createDirectory( source )
-	    Process( bower :: "install" :: dependency.install :: Nil, source ) ! s.log
-	  }
-	}
+    lazy val isANSISupported = {
+      Option(System.getProperty("sbt.log.noformat")).map(_ != "true").orElse {
+        Option(System.getProperty("os.name"))
+          .map(_.toLowerCase)
+          .filter(_.contains("windows"))
+          .map(_ => false)
+      }.getOrElse(true)
+    }
+    
+    def green(str: String): String = if (isANSISupported) (GREEN + str + RESET) else str
+  }
 
-  val list = TaskKey[Unit]("list","list all the packages that are installed locally")
-  private def listTask: Project.Initialize[Task[Unit]] = (bowerPath, streams) map { (bower, s) =>
-    Process( bower :: "install" :: Nil ) ! s.log
+
+  import SimpleBowerKeys._
+
+  private def bowerGenerateTask: Def.Initialize[Task[Seq[File]]] = (bowerPath, baseDirectory, streams) map { (bower, base, s) =>
+    try{
+      Process( bower :: "install" :: Nil, base ) ! s.log
+      s.log.info(Colors.green("Bower install finished"))
+    } catch {
+      case e: java.io.IOException =>
+        s.log.error("Bower couldn't be found. Please set the configuration key 'SimpleBowerKeys.bowerPath' properly. " + e.getMessage)
+    }
+    Seq()
   }
 
   lazy val bowerSettings: Seq[Setting[_]] = Seq(
-    libraryDependencies in Bower := Seq.empty,
-    frontendDependencies := Seq.empty,
     bowerPath := "/usr/local/share/npm/bin/bower",
-    sourceDirectory in Bower <<= (sourceDirectory) (_ / "main" / "webapp" )
+    resourceGenerators in Compile <+= bowerGenerateTask
   )
-
-  override lazy val settings: Seq[Setting[_]] = inConfig(Bower) (Seq (
-    install <<= installTask,
-    list <<= listTask
-  ))
-
-  implicit def toFrontendDependency( artifactName: String ) = new FrontendDependency( artifactName )
-}
-
-class FrontendDependency( artifactName: String ) {
-	def `#` ( revision: String ) = new FrontendDependencyWithRevision( artifactName, revision )
-	def HEAD = this
-	def install = artifactName
-}
-
-class FrontendDependencyWithRevision( artifactName: String, revision: String ) extends FrontendDependency( artifactName ) {
-  override def install = "%s#%s".format( super.install, revision )
 }
