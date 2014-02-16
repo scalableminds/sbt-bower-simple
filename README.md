@@ -1,10 +1,11 @@
 # sbt-bower-simple
-================
 
 Run "bower install" as part of sbt resource generation. 
 The plugin will invoke `bower install` everytime resource generation is necessary.
 
 ## Installation
+
+The package is not published publicly available. You need to checkout the repository and publish the artifact localy by running `sbt publish-local`.
 
 Add the following line to your `project/plugins.sbt`:
 
